@@ -1,0 +1,39 @@
+name: Docker Compose for Local Development
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - development
+        - staging
+
+jobs:
+  docker-compose-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Create environment file
+      run: |
+        echo "NODE_ENV=${{ github.event.inputs.environment }}" > .env
+        echo "PORT=3000" >> .env
+        echo "ALLOWED_ORIGINS=*" >> .env
+        
+    - name: Build and run with Docker Compose
+      run: |
+        docker-compose -f module-1-dockerfile/docker-compose.yml up --build -d
+        
+    - name: Wait for services to be ready
+      run: |
+        sleep 30
+        curl -f http://localhost:3000/health || exit 1
