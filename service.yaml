@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: burgerapp-backend
+  namespace: burgerapp-prod
+  labels:
+    app: burgerapp-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: burgerapp-backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+

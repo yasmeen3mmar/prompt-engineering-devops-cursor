@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  build-test-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: module-1-dockerfile/sample-app/package.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: module-1-dockerfile/sample-app
+
+      - name: Run tests
+        run: npm test --if-present
+        working-directory: module-1-dockerfile/sample-app
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -f module-1-dockerfile/sample-app/Dockerfile.basic \
+            -t my-app:${{ github.sha }} \
+            module-1-dockerfile/sample-app
+
+      - name: Login to Azure Container Registry
+        env:
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        run: |
+          echo "$ACR_PASSWORD" | docker login "$ACR_LOGIN_SERVER" -u "$ACR_USERNAME" --password-stdin
+
+      - name: Tag and push image to ACR
+        env:
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+        run: |
+          FULL_TAG="$ACR_LOGIN_SERVER/my-app:${{ github.sha }}"
+          docker tag my-app:${{ github.sha }} "$FULL_TAG"
+          docker push "$FULL_TAG"
+
+
